@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FX Trade Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --green: #00e5a0;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --lkr: #ff9800;
+    --sgd-c: #e63946;
+    --usd-c: #2196f3;
+    --cny-c: #f5c518;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    background-image:
+      radial-gradient(ellipse 80% 60% at 10% 0%, rgba(0,212,255,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 100%, rgba(255,107,53,0.05) 0%, transparent 60%);
+  }
+
+  header { text-align: center; margin-bottom: 36px; }
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.4rem, 6vw, 4rem);
+    letter-spacing: 0.12em;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--green) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; line-height: 1;
+  }
+  header p {
+    font-size: 0.78rem; color: var(--muted); letter-spacing: 0.2em;
+    text-transform: uppercase; margin-top: 6px; font-family: 'DM Mono', monospace;
+  }
+
+  .main-grid { max-width: 880px; margin: 0 auto; display: grid; gap: 16px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.4;
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.25em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Live Rates Header ── */
+  .rates-header { display: flex; align-items: center; margin-bottom: 18px; gap: 10px; }
+  .rates-header .section-label { margin-bottom: 0; flex: none; }
+
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.2);
+    border-radius: 20px; padding: 3px 10px; font-size: 0.62rem;
+    color: var(--green); font-family: 'DM Mono', monospace;
+  }
+  .live-dot {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .fetch-btn {
+    margin-left: auto; background: transparent; border: 1px solid var(--border);
+    border-radius: 8px; color: var(--muted); font-family: 'DM Mono', monospace;
+    font-size: 0.65rem; padding: 5px 14px; cursor: pointer; transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .fetch-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Rate Cards ── */
+  .rates-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+  .rate-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px;
+  }
+  .rate-flag { font-size: 1.3rem; margin-bottom: 3px; }
+  .rate-pair { font-family: 'DM Mono', monospace; font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 6px; }
+  .rate-input-wrap { position: relative; }
+  .rate-input-wrap span {
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--muted); pointer-events: none;
+  }
+
+  input[type="number"] {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 0.85rem; padding: 7px 7px 7px 32px; outline: none;
+    transition: border-color 0.2s; -moz-appearance: textfield;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type="number"]:focus { border-color: var(--accent); }
+
+  /* ── Amount Row ── */
+  .amount-row { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: end; }
+
+  .field-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; font-family: 'DM Mono', monospace; letter-spacing: 0.08em; }
+
+  .big-input-wrap { position: relative; }
+  .big-input-wrap .currency-tag {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--muted); pointer-events: none;
+  }
+  .big-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 1.4rem; font-weight: 500; padding: 14px 14px 14px 52px; outline: none;
+    transition: border-color 0.2s; -moz-appearance: textfield;
+  }
+  .big-input::-webkit-outer-spin-button,
+  .big-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .big-input:focus { border-color: var(--accent); }
+
+  /* ── Dropdown ── */
+  .dropdown-wrap { position: relative; }
+  .dropdown-wrap .field-label { margin-bottom: 6px; }
+
+  .curr-dropdown {
+    appearance: none; -webkit-appearance: none;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 0.85rem; padding: 12px 36px 12px 14px; cursor: pointer;
+    outline: none; transition: border-color 0.2s; min-width: 150px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+  .curr-dropdown:focus { border-color: var(--accent); }
+  .curr-dropdown option { background: #1a2235; color: var(--text); }
+
+  /* ── Charges ── */
+  .charges-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .charge-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .charge-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .charge-name { font-size: 0.72rem; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 0.08em; }
+  .charge-badge { font-size: 0.6rem; padding: 2px 8px; border-radius: 20px; font-family: 'DM Mono', monospace; }
+  .badge-pct { background: rgba(0,212,255,0.12); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+  .badge-fixed { background: rgba(255,107,53,0.12); color: var(--accent2); border: 1px solid rgba(255,107,53,0.2); }
+
+  .charge-input-row { display: flex; gap: 6px; align-items: center; }
+  .type-toggle { display: flex; border-radius: 7px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0; }
+  .type-toggle button {
+    background: transparent; border: none; color: var(--muted);
+    font-family: 'DM Mono', monospace; font-size: 0.65rem; padding: 6px 9px; cursor: pointer; transition: all 0.15s;
+  }
+  .type-toggle button.active { background: var(--accent); color: var(--bg); font-weight: 600; }
+
+  /* ── Results ── */
+  .results-card {
+    background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, rgba(0,229,160,0.03) 100%);
+    border: 1px solid rgba(0,212,255,0.2);
+  }
+  .results-card::before { opacity: 1; background: linear-gradient(90deg, transparent, var(--accent), var(--green), transparent); }
+
+  .breakdown-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.85rem;
+  }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-label { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.75rem; }
+  .breakdown-value { font-family: 'DM Mono', monospace; font-size: 0.85rem; font-weight: 500; }
+  .breakdown-value.pos { color: var(--accent2); }
+  .breakdown-value.base { color: var(--text); }
+  .breakdown-value.conv { color: var(--accent); }
+
+  .total-row {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding-top: 18px; margin-top: 8px; border-top: 1px solid rgba(0,212,255,0.2);
+  }
+  .total-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 0.12em; color: var(--muted); }
+  .total-values { text-align: right; }
+  .total-main { font-family: 'DM Mono', monospace; font-size: 1.8rem; font-weight: 500; color: var(--green); line-height: 1; }
+  .total-conv {
+    font-family: 'DM Mono', monospace; font-size: 1rem; margin-top: 6px;
+    display: flex; align-items: center; gap: 6px; justify-content: flex-end;
+  }
+
+  /* ── Currency color theming ── */
+  .theme-sgd { color: var(--sgd-c) !important; }
+  .theme-usd { color: var(--usd-c) !important; }
+  .theme-cny { color: var(--cny-c) !important; }
+
+  /* ── Last updated ── */
+  .last-updated { font-family: 'DM Mono', monospace; font-size: 0.6rem; color: var(--muted); margin-top: 10px; text-align: right; }
+
+  @media (max-width: 600px) {
+    .rates-grid { grid-template-columns: 1fr 1fr; }
+    .charges-grid { grid-template-columns: 1fr; }
+    .amount-row { grid-template-columns: 1fr; }
+    .curr-dropdown { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FX Trade Calculator</h1>
+  <p>LKR · SGD · USD · CNY &nbsp;|&nbsp; VAT & Freight Inclusive</p>
+</header>
+
+<div class="main-grid">
+
+  <!-- Exchange Rates -->
+  <div class="card">
+    <div class="rates-header">
+      <div class="section-label">Live Exchange Rates (LKR Base)</div>
+      <div class="live-badge"><div class="live-dot"></div><span id="rateStatus">Manual</span></div>
+      <button class="fetch-btn" id="fetchBtn" onclick="fetchLiveRates()">⟳ Fetch Live Rates</button>
+    </div>
+    <div class="rates-grid">
+      <div class="rate-item">
+        <div class="rate-flag">🇱🇰→🇸🇬</div>
+        <div class="rate-pair">LKR → SGD</div>
+        <div class="rate-input-wrap">
+          <span>S$</span>
+          <input type="number" id="rate_LKR_SGD" value="0.002313" step="0.000001" oninput="calculate()">
+        </div>
+      </div>
+      <div class="rate-item">
+        <div class="rate-flag">🇱🇰→🇺🇸</div>
+        <div class="rate-pair">LKR → USD</div>
+        <div class="rate-input-wrap">
+          <span>$</span>
+          <input type="number" id="rate_LKR_USD" value="0.003125" step="0.000001" oninput="calculate()">
+        </div>
+      </div>
+      <div class="rate-item">
+        <div class="rate-flag">🇱🇰→🇨🇳</div>
+        <div class="rate-pair">LKR → CNY</div>
+        <div class="rate-input-wrap">
+          <span>¥</span>
+          <input type="number" id="rate_LKR_CNY" value="0.022700" step="0.000001" oninput="calculate()">
+        </div>
+      </div>
+      <div class="rate-item">
+        <div class="rate-flag">🇱🇰</div>
+        <div class="rate-pair">1 USD = ? LKR</div>
+        <div class="rate-input-wrap">
+          <span>Rs</span>
+          <input type="number" id="rate_USD_LKR" value="320.00" step="0.01" oninput="calculate()" readonly style="opacity:0.6;cursor:default">
+        </div>
+      </div>
+    </div>
+    <div class="last-updated" id="lastUpdated"></div>
+  </div>
+
+  <!-- Amount Input -->
+  <div class="card">
+    <div class="section-label">Base Amount</div>
+    <div class="amount-row">
+      <div>
+        <div class="field-label">Enter Amount in LKR (Sri Lankan Rupee)</div>
+        <div class="big-input-wrap">
+          <span class="currency-tag">Rs</span>
+          <input type="number" class="big-input" id="amount" value="320000" step="1" oninput="calculate()">
+        </div>
+      </div>
+      <div class="dropdown-wrap">
+        <div class="field-label">Convert Total To</div>
+        <select class="curr-dropdown" id="targetCurrency" onchange="calculate()">
+          <option value="SGD">🇸🇬 SGD — Singapore Dollar</option>
+          <option value="USD">🇺🇸 USD — US Dollar</option>
+          <option value="CNY">🇨🇳 CNY — Chinese Yuan</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charges -->
+  <div class="card">
+    <div class="section-label">Charges & Taxes</div>
+    <div class="charges-grid">
+      <div class="charge-item">
+        <div class="charge-header">
+          <div class="charge-name">VAT / GST</div>
+          <div class="charge-badge badge-pct" id="vatBadge">%</div>
+        </div>
+        <div class="charge-input-row">
+          <div class="type-toggle">
+            <button class="active" id="vat-pct-btn" onclick="setChargeType('vat','pct')">%</button>
+            <button id="vat-fix-btn" onclick="setChargeType('vat','fix')">Rs</button>
+          </div>
+          <input type="number" id="vatValue" value="9" step="0.01" oninput="calculate()" style="padding-left:10px">
+        </div>
+      </div>
+      <div class="charge-item">
+        <div class="charge-header">
+          <div class="charge-name">Freight / Shipping</div>
+          <div class="charge-badge badge-fixed" id="freightBadge">Rs</div>
+        </div>
+        <div class="charge-input-row">
+          <div class="type-toggle">
+            <button id="freight-pct-btn" onclick="setChargeType('freight','pct')">%</button>
+            <button class="active" id="freight-fix-btn" onclick="setChargeType('freight','fix')">Rs</button>
+          </div>
+          <input type="number" id="freightValue" value="5000" step="1" oninput="calculate()" style="padding-left:10px">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card results-card">
+    <div class="section-label">Calculation Summary</div>
+
+    <div class="breakdown-row">
+      <span class="breakdown-label">Base Amount</span>
+      <span class="breakdown-value base" id="res-base">—</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="breakdown-label">Base in Selected Currency</span>
+      <span class="breakdown-value conv" id="res-conv-base">—</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="breakdown-label">VAT / GST</span>
+      <span class="breakdown-value pos" id="res-vat">—</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="breakdown-label">Freight / Shipping</span>
+      <span class="breakdown-value pos" id="res-freight">—</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="breakdown-label">Subtotal (LKR)</span>
+      <span class="breakdown-value base" id="res-subtotal">—</span>
+    </div>
+
+    <div class="total-row">
+      <div>
+        <div class="total-label">GRAND TOTAL</div>
+        <div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--muted);margin-top:4px;">in selected currency</div>
+      </div>
+      <div class="total-values">
+        <div class="total-main" id="res-total-lkr">—</div>
+        <div class="total-conv" id="res-total-conv-wrap">
+          <span id="res-conv-flag">🇸🇬</span>
+          <span id="res-total-conv" style="color:var(--sgd-c)">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const CURRENCIES = {
+    SGD: { flag: '🇸🇬', symbol: 'S$', label: 'SGD', color: 'var(--sgd-c)', rateKey: 'rate_LKR_SGD' },
+    USD: { flag: '🇺🇸', symbol: '$',  label: 'USD', color: 'var(--usd-c)', rateKey: 'rate_LKR_USD' },
+    CNY: { flag: '🇨🇳', symbol: '¥',  label: 'CNY', color: 'var(--cny-c)', rateKey: 'rate_LKR_CNY' },
+  };
+
+  let chargeTypes = { vat: 'pct', freight: 'fix' };
+
+  function fmt(num, dec = 2) {
+    return num.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+
+  function setChargeType(charge, type) {
+    chargeTypes[charge] = type;
+    document.getElementById(`${charge}-pct-btn`).className = type === 'pct' ? 'active' : '';
+    document.getElementById(`${charge}-fix-btn`).className = type === 'fix' ? 'active' : '';
+    const badge = document.getElementById(`${charge}Badge`);
+    badge.textContent = type === 'pct' ? '%' : 'Rs';
+    badge.className = 'charge-badge ' + (type === 'pct' ? 'badge-pct' : 'badge-fixed');
+    calculate();
+  }
+
+  function calculate() {
+    const amountLKR  = parseFloat(document.getElementById('amount').value) || 0;
+    const vatValue   = parseFloat(document.getElementById('vatValue').value) || 0;
+    const freightVal = parseFloat(document.getElementById('freightValue').value) || 0;
+    const target     = document.getElementById('targetCurrency').value;
+    const curr       = CURRENCIES[target];
+    const lkrToTarget = parseFloat(document.getElementById(curr.rateKey).value) || 0;
+
+    // VAT
+    const vatLKR = chargeTypes.vat === 'pct'
+      ? amountLKR * (vatValue / 100)
+      : vatValue;
+
+    // Freight
+    const freightLKR = chargeTypes.freight === 'pct'
+      ? amountLKR * (freightVal / 100)
+      : freightVal;
+
+    const totalLKR    = amountLKR + vatLKR + freightLKR;
+    const baseConv    = amountLKR * lkrToTarget;
+    const totalConv   = totalLKR * lkrToTarget;
+
+    // Decimals: CNY & SGD 2dp, others 2dp
+    const dec = target === 'CNY' ? 2 : 2;
+
+    document.getElementById('res-base').textContent       = `Rs ${fmt(amountLKR)} LKR`;
+    document.getElementById('res-conv-base').textContent  = `${curr.symbol}${fmt(baseConv, dec)} ${curr.label}`;
+    document.getElementById('res-vat').textContent        = `+Rs ${fmt(vatLKR)} LKR`;
+    document.getElementById('res-freight').textContent    = `+Rs ${fmt(freightLKR)} LKR`;
+    document.getElementById('res-subtotal').textContent   = `Rs ${fmt(totalLKR)} LKR`;
+    document.getElementById('res-total-lkr').textContent  = `Rs ${fmt(totalLKR)} LKR`;
+
+    const convEl = document.getElementById('res-total-conv');
+    convEl.textContent = `${curr.symbol}${fmt(totalConv, dec)} ${curr.label}`;
+    convEl.style.color = curr.color;
+
+    document.getElementById('res-conv-flag').textContent  = curr.flag;
+  }
+
+  async function fetchLiveRates() {
+    const btn = document.getElementById('fetchBtn');
+    const statusEl = document.getElementById('rateStatus');
+    btn.textContent = '⟳ Fetching...';
+    btn.disabled = true;
+    statusEl.textContent = 'Fetching...';
+
+    try {
+      const res  = await fetch('https://open.er-api.com/v6/latest/USD');
+      const data = await res.json();
+      const { SGD, LKR, CNY } = data.rates;
+
+      if (SGD && LKR && CNY) {
+        const lkrToSgd = SGD / LKR;
+        const lkrToUsd = 1 / LKR;
+        const lkrToCny = CNY / LKR;
+
+        document.getElementById('rate_LKR_SGD').value = lkrToSgd.toFixed(6);
+        document.getElementById('rate_LKR_USD').value = lkrToUsd.toFixed(6);
+        document.getElementById('rate_LKR_CNY').value = lkrToCny.toFixed(6);
+        document.getElementById('rate_USD_LKR').value = LKR.toFixed(2);
+
+        calculate();
+
+        const now = new Date();
+        document.getElementById('lastUpdated').textContent =
+          `Rates updated: ${now.toLocaleTimeString()} · Source: exchangerate-api.com`;
+        statusEl.textContent = 'Live';
+        btn.textContent = '✓ Updated';
+        setTimeout(() => { btn.textContent = '⟳ Fetch Live Rates'; btn.disabled = false; }, 2500);
+      }
+    } catch(e) {
+      statusEl.textContent = 'Manual';
+      btn.textContent = '✗ Failed — Try Again';
+      btn.disabled = false;
+    }
+  }
+
+  // Auto-fetch on load
+  fetchLiveRates();
+</script>
+</body>
+</html>
