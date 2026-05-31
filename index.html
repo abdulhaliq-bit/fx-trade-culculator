@@ -253,7 +253,7 @@
 
 <header>
   <h1>FX Trade Calculator</h1>
-  <p>Currency Converter · LKR · SGD · USD · CNY &amp; More</p>
+  <p>Currency Converter · SGD · LKR · USD · CNY &amp; More</p>
 </header>
 
 <div class="main-grid">
@@ -334,7 +334,7 @@
   <!-- ══ EXCHANGE RATES ══ -->
   <div class="card">
     <div class="rates-header">
-      <div class="section-label">Live Rates (to LKR)</div>
+      <div class="section-label">Live Rates (SGD Base)</div>
       <div class="live-badge"><div class="live-dot"></div><span id="rateStatus">Loading...</span></div>
       <button class="fetch-btn" id="fetchBtn" onclick="fetchLiveRates()">⟳ Refresh Rates</button>
     </div>
@@ -376,18 +376,26 @@
     <div class="section-label">Trade Amount</div>
     <div class="amount-row">
       <div>
-        <div class="field-label">Enter Amount in LKR</div>
-        <div class="big-input-wrap">
-          <span class="currency-tag">Rs</span>
-          <input type="number" class="big-input" id="amount" value="320000" step="1" oninput="calculate()">
+        <div class="field-label">Enter Amount in SGD</div>
+        <div class="big-input-wrap" style="position:relative;">
+          <span class="currency-tag">S$</span>
+          <input type="number" class="big-input" id="amount" value="1000" step="0.01"
+            oninput="updateAmountDisplay(); calculate()"
+            onfocus="document.getElementById('amountDisplay').style.display='none'; this.style.color='var(--text)'"
+            onblur="updateAmountDisplay(); this.style.color='transparent'"
+            style="color:transparent; caret-color:var(--text);">
+          <div id="amountDisplay" style="
+            position:absolute; left:52px; top:50%; transform:translateY(-50%);
+            font-family:'DM Mono',monospace; font-size:1.4rem; font-weight:500;
+            color:var(--text); pointer-events:none; letter-spacing:0.01em;">1,000.00</div>
         </div>
       </div>
       <div>
         <div class="field-label">Show Total In</div>
         <select class="curr-dropdown" id="targetCurrency" onchange="calculate()">
-          <option value="SGD">🇸🇬 SGD — Singapore Dollar</option>
-          <option value="USD">🇺🇸 USD — US Dollar</option>
-          <option value="CNY">🇨🇳 CNY — Chinese Yuan</option>
+          <option value="SGD" selected>🇸🇬 SGD → LKR</option>
+          <option value="USD">🇺🇸 USD</option>
+          <option value="CNY">🇨🇳 CNY</option>
         </select>
       </div>
     </div>
@@ -405,7 +413,7 @@
         <div class="charge-input-row">
           <div class="type-toggle">
             <button class="active" id="vat-pct-btn" onclick="setChargeType('vat','pct')">%</button>
-            <button id="vat-fix-btn" onclick="setChargeType('vat','fix')">Rs</button>
+            <button id="vat-fix-btn" onclick="setChargeType('vat','fix')">S$</button>
           </div>
           <input type="number" id="vatValue" value="9" step="0.01" oninput="calculate()" style="padding-left:10px">
         </div>
@@ -420,7 +428,7 @@
             <button id="freight-pct-btn" onclick="setChargeType('freight','pct')">%</button>
             <button class="active" id="freight-fix-btn" onclick="setChargeType('freight','fix')">Rs</button>
           </div>
-          <input type="number" id="freightValue" value="5000" step="1" oninput="calculate()" style="padding-left:10px">
+          <input type="number" id="freightValue" value="50" step="0.01" oninput="calculate()" style="padding-left:10px">
         </div>
       </div>
     </div>
@@ -434,7 +442,7 @@
       <span class="breakdown-value base" id="res-base">—</span>
     </div>
     <div class="breakdown-row">
-      <span class="breakdown-label">Base in Selected Currency</span>
+      <span class="breakdown-label">Equivalent in LKR</span>
       <span class="breakdown-value conv" id="res-conv-base">—</span>
     </div>
     <div class="breakdown-row">
@@ -446,13 +454,13 @@
       <span class="breakdown-value pos" id="res-freight">—</span>
     </div>
     <div class="breakdown-row">
-      <span class="breakdown-label">Subtotal (LKR)</span>
+      <span class="breakdown-label">Subtotal (SGD)</span>
       <span class="breakdown-value base" id="res-subtotal">—</span>
     </div>
     <div class="total-row">
       <div>
         <div class="total-label">Grand Total</div>
-        <div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--muted);margin-top:4px;">LKR + selected currency</div>
+        <div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--muted);margin-top:4px;">SGD + converted currency</div>
       </div>
       <div class="total-values">
         <div class="total-main" id="res-total-lkr">—</div>
@@ -494,6 +502,11 @@
 
   function fmt(num, dec = 2) {
     return num.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+
+  function updateAmountDisplay() {
+    const val = parseFloat(document.getElementById('amount').value) || 0;
+    document.getElementById('amountDisplay').textContent = fmt(val, 2);
   }
 
   // ── Converter ──
@@ -574,38 +587,50 @@
     document.getElementById(`${charge}-pct-btn`).className = type === 'pct' ? 'active' : '';
     document.getElementById(`${charge}-fix-btn`).className = type === 'fix' ? 'active' : '';
     const badge = document.getElementById(`${charge}Badge`);
-    badge.textContent = type === 'pct' ? '%' : 'Rs';
+    badge.textContent = type === 'pct' ? '%' : 'S$';
     badge.className = 'charge-badge ' + (type === 'pct' ? 'badge-pct' : 'badge-fixed');
     calculate();
   }
 
   function calculate() {
-    const amountLKR   = parseFloat(document.getElementById('amount').value) || 0;
+    const amountSGD   = parseFloat(document.getElementById('amount').value) || 0;
     const vatValue    = parseFloat(document.getElementById('vatValue').value) || 0;
     const freightVal  = parseFloat(document.getElementById('freightValue').value) || 0;
     const target      = document.getElementById('targetCurrency').value;
     const curr        = CURRENCIES[target];
+
+    // SGD → LKR rate (how many LKR per 1 SGD)
+    const sgdToLkr    = parseFloat(document.getElementById('rate_SGD_LKR').value) || 432.50;
+    const amountLKR   = amountSGD * sgdToLkr;
+
+    // VAT & Freight calculated on SGD base
+    const vatSGD      = chargeTypes.vat === 'pct' ? amountSGD * (vatValue / 100) : vatValue;
+    const freightSGD  = chargeTypes.freight === 'pct' ? amountSGD * (freightVal / 100) : freightVal;
+    const totalSGD    = amountSGD + vatSGD + freightSGD;
+    const totalLKR    = totalSGD * sgdToLkr;
+
+    // Convert total to selected target currency
     const rateVal     = parseFloat(document.getElementById(curr.rateKey).value) || 1;
-    // rateKey is now X→LKR (e.g. SGD→LKR = 432), so to convert LKR→X we divide
-    const lkrToTarget = curr.invert ? (1 / rateVal) : rateVal;
+    // rateKey is X→LKR, so to get LKR→X we use 1/rateVal; for SGD it's already sgdToLkr
+    const totalTarget = curr.label === 'SGD' ? totalSGD : (totalLKR / rateVal);
 
-    const vatLKR      = chargeTypes.vat === 'pct' ? amountLKR * (vatValue / 100) : vatValue;
-    const freightLKR  = chargeTypes.freight === 'pct' ? amountLKR * (freightVal / 100) : freightVal;
-    const totalLKR    = amountLKR + vatLKR + freightLKR;
-    const baseConv    = amountLKR * lkrToTarget;
-    const totalConv   = totalLKR * lkrToTarget;
-
-    document.getElementById('res-base').textContent      = `Rs ${fmt(amountLKR)} LKR`;
-    document.getElementById('res-conv-base').textContent = `${curr.symbol}${fmt(baseConv)} ${curr.label}`;
-    document.getElementById('res-vat').textContent       = `+Rs ${fmt(vatLKR)} LKR`;
-    document.getElementById('res-freight').textContent   = `+Rs ${fmt(freightLKR)} LKR`;
-    document.getElementById('res-subtotal').textContent  = `Rs ${fmt(totalLKR)} LKR`;
-    document.getElementById('res-total-lkr').textContent = `Rs ${fmt(totalLKR)} LKR`;
+    document.getElementById('res-base').textContent      = `S$ ${fmt(amountSGD)} SGD`;
+    document.getElementById('res-conv-base').textContent = `Rs ${fmt(amountLKR)} LKR`;
+    document.getElementById('res-vat').textContent       = `+ S$ ${fmt(vatSGD)} SGD`;
+    document.getElementById('res-freight').textContent   = `+ S$ ${fmt(freightSGD)} SGD`;
+    document.getElementById('res-subtotal').textContent  = `S$ ${fmt(totalSGD)} SGD`;
+    document.getElementById('res-total-lkr').textContent = `S$ ${fmt(totalSGD)} SGD`;
 
     const convEl = document.getElementById('res-total-conv');
-    convEl.textContent = `${curr.symbol}${fmt(totalConv)} ${curr.label}`;
-    convEl.style.color = curr.color;
-    document.getElementById('res-conv-flag').textContent = curr.flag;
+    if (curr.label === 'SGD') {
+      convEl.textContent = `Rs ${fmt(totalLKR)} LKR`;
+      convEl.style.color = 'var(--lkr)';
+      document.getElementById('res-conv-flag').textContent = '🇱🇰';
+    } else {
+      convEl.textContent = `${curr.symbol} ${fmt(totalTarget)} ${curr.label}`;
+      convEl.style.color = curr.color;
+      document.getElementById('res-conv-flag').textContent = curr.flag;
+    }
   }
 
   // ── Live Rates ──
@@ -648,6 +673,7 @@
   }
 
   fetchLiveRates();
+  updateAmountDisplay();
 </script>
 </body>
 </html>
